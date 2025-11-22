@@ -3,47 +3,46 @@
 
 storage_server_setup() {
 	while [ true ]
-    do
-        echo "Please enter server address for remote storage:"
-        read -p 'Address: ' server_address
+  do
 
-        echo "\nPlease enter user name for server:"
-        read -p 'Username: ' server_user_name
+      if [ -z $passvar1 ] || [ -z $passvar2 ]
+      then
+          echo "Password cannot be blank"
+          echo ""
+          echo ""
+          echo ""
 
-        echo "\nPlease enter a password for $server_user_name :"
-        read -sp 'Password: ' passvar1
-        echo "Please re-enter the password for $server_user_name :"
-        read -sp 'Password: ' passvar2
+      elif [ $passvar1 == $passvar2 ]
+      then
+          USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+          echo "Please enter server address for remote storage:"
+          read -p 'Address: ' server_address
 
+          echo "\nPlease enter user name for server:"
+          read -p 'Username: ' server_user_name
 
+          echo "\nPlease enter a password for $server_user_name :"
+          read -sp 'Password: ' passvar1
+          echo "Please re-enter the password for $server_user_name :"
+          read -sp 'Password: ' passvar2
 
-        if [ -z $passvar1 ] || [ -z $passvar2 ]
-        then
-            echo "Password cannot be blank"
-            echo ""
-            echo ""
-            echo ""
+          sudo sh -c '
+            touch /etc/samba_credentials
+            echo "username=$server_user_name" >> /etc/samba_credentials
+            echo "password=$passvar1" >> /etc/samba_credentials
+            chmod 600 /etc/samba_credentials
+            echo "//$server_address     $USER_HOME/.data     cifs    credentials=/etc/samba_credentials,uid=1000,gid=1000,file_mode=0644,dir_mode=0755,vers=3.0,_netdev,nofail,x-systemd.after=wait-for-ping.service    0 0" >> /etc/fstab
+            mount -t cifs //$server_address $USER_HOME/.data -o credentials=/etc/samba_credentials
+          '
+          break
 
-        elif [ $passvar1 == $passvar2 ]
-        then
-            USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-            sudo sh -c '
-              touch /etc/samba_credentials
-              echo "username=$server_user_name" >> /etc/samba_credentials
-              echo "password=$passvar1" >> /etc/samba_credentials
-              chmod 600 /etc/samba_credentials
-              echo "//$server_address     $USER_HOME/.data     cifs    credentials=/etc/samba_credentials,uid=1000,gid=1000,file_mode=0644,dir_mode=0755,vers=3.0,_netdev,nofail,x-systemd.after=wait-for-ping.service    0 0" >> /etc/fstab
-              mount -t cifs //$server_address $USER_HOME/.data -o credentials=/etc/samba_credentials
-            '
-            break
-
-        else
-            echo "passwords did not match."
-            echo ""
-            echo ""
-            echo ""
-        fi
-    done
+      else
+          echo "passwords did not match."
+          echo ""
+          echo ""
+          echo ""
+      fi
+  done
 }
 
 mkdir $HOME/.data
