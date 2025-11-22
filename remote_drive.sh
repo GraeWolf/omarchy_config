@@ -57,7 +57,7 @@ password_var() {
 # Install cifs-utils if missing (Debian/Ubuntu)
 if ! command -v mount.cifs >/dev/null 2>&1; then
     echo 'Installing cifs-utils...'
-    pacman -S --noconfirm --needed cifs-utils
+    apt-get update -qq && apt-get install -y cifs-utils
 fi
 
 # Ask for password NOW (inside sudo → clean terminal)
@@ -67,7 +67,7 @@ cred  echo 'Creating credentials file...'
 cred_file='/etc/samba_credentials'
 cat > \"\$cred_file\" <<EOF
 username=$server_user_name
-password=$server_password
+password=\$server_password
 EOF
 chmod 600 \"\$cred_file\"
 
