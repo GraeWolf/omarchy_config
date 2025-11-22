@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ——— Get real user details (even when script is run with sudo) ———
+# Get real user info
 if [[ -n "${SUDO_USER:-}" ]]; then
     USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     REAL_UID=$(id -u "$SUDO_USER")
@@ -14,91 +14,71 @@ fi
 
 echo "=== Samba/CIFS Remote Storage Setup ==="
 echo
-read -p "Server address (e.g. 192.168.1.100 or nas.local): " server_address
+
+read -p "Server address (IP or hostname): " server_address
 read -p "Username on the server: " server_user_name
 read -p "Exact share name on the server: " shared_directory
 
 [[ -z "$server_address" || -z "$server_user_name" || -z "$shared_directory" ]] && {
-    echo "Error: All fields are required."
+    echo "Error: All fields required"
     exit 1
 }
 
 mkdir -p "$USER_HOME/.data"
 
-# ——— Everything that needs root + interactive password prompt ———
-sudo bash -s <<EOF "$server_address" "$server_user_name" "$shared_directory" "$USER_HOME" "$REAL_UID" "$REAL_GID"
+# THIS IS THE ONLY METHOD THAT NEVER HANGS
+sudo script -q -c "
 set -euo pipefail
 
-SERVER="\$1"
-USER="\$2"
-SHARE="\$3"
-MOUNTPOINT="\$4"
-TARGET_UID="\$5"   # ← renamed to avoid clash with readonly UID
-TARGET_GID="\$6"
-
-# Secure password prompt (works because we have a real TTY)
 ask_password() {
-    while true; do
-        echo "Please enter password for server user '\$USER':"
-        read -rs PASS1; echo
-        echo "Confirm password:"
-        read -rs PASS2; echo
-        if [[ "\$PASS1" == "\$PASS2" && -n "\$PASS1" ]]; then
-            echo "\$PASS1"
-            return 0
-        elif [[ -z "\$PASS1" ]]; then
-            echo "Password cannot be empty"
-        else
-            echo "Passwords do not match – try again"
-        fi
+    while :; do
+        echo -n 'Password for $server_user_name: '
+        read -rs pass1; echo
+        echo -n 'Confirm password: '
+        read -rs pass2; echo
+        [[ -n \"\$pass1\" && \"\$pass1\" == \"\$pass2\" ]] && { echo \"\$pass1\"; return; }
+        [[ -z \"\$pass1\" ]] && echo 'Password cannot be empty' || echo 'Passwords do not match'
         echo
     done
 }
 
 # Install cifs-utils if missing
-if ! command -v mount.cifs >/dev/null 2>&1; then
-    echo "Installing cifs-utils..."
+command -v mount.cifs >/dev/null || {
+    echo 'Installing cifs-utils…'
     apt-get update -qq && apt-get install -y cifs-utils
-fi
+}
 
-PASSWORD=\$(ask_password)
+PASS=\$(ask_password)
 
-CRED_FILE="/etc/samba_credentials"
-cat > "\$CRED_FILE" <<CREDS
-username=\$USER
-password=\$PASSWORD
-CREDS
-chmod 600 "\$CRED_FILE"
-
-FSTAB_LINE="//\$SERVER/\$SHARE \$MOUNTPOINT cifs credentials=\$CRED_FILE,uid=\$TARGET_UID,gid=\$TARGET_GID,iocharset=utf8,file_mode=0644,dir_mode=0755,vers=3.0,nofail,_netdev 0 0"
-
-if ! grep -F "\$MOUNTPOINT" /etc/fstab >/dev/null 2>&1; then
-    echo "\$FSTAB_LINE" >> /etc/fstab
-    echo "Added to /etc/fstab"
-else
-    echo "Already present in /etc/fstab"
-fi
-
-echo "Mounting //\$SERVER/\$SHARE → \$MOUNTPOINT"
-mount "\$MOUNTPOINT" && echo "Mount successful!"
+cat > /etc/samba_credentials <<EOF
+username=$server_user_name
+password=\$PASS
 EOF
+chmod 600 /etc/samba_credentials
 
-# ——— Back to normal user: create symlinks ———
-for dir in Documents Music Pictures Videos; do
-    remote="$USER_HOME/.data/$shared_directory/$dir"
-    local="$USER_HOME/$dir"
+LINE=\"//$server_address/$shared_directory $USER_HOME/.data cifs credentials=/etc/samba_credentials,uid=$REAL_UID,gid=$REAL_GID,iocharset=utf8,file_mode=0644,dir_mode=0755,vers=3.0,nofail,_netdev 0 0\"
 
-    if [[ -d "$remote" ]]; then
-        if [[ -e "$local" && ! -L "$local" ]]; then
-            mv "$local" "$local.backup.$(date +%Y%m%d-%H%M%S)"
-            echo "Backed up $local"
-        fi
-        ln -sfn "$remote" "$local"
-        echo "Symlinked ~/$dir"
+if ! grep -F \"$USER_HOME/.data\" /etc/fstab >/dev/null 2>&1; then
+    echo \"\$LINE\" >> /etc/fstab
+    echo 'Added to /etc/fstab'
+fi
+
+echo 'Mounting…'
+mount \"$USER_HOME/.data\" && echo 'Mount successful!'
+" /dev/null
+
+# Back to normal user – symlinks
+for d in Documents Music Pictures Videos; do
+    src=\"$USER_HOME/.data/$shared_directory/$d\"
+    dst=\"$USER_HOME/$d\"
+    if [[ -d \"\$src\" ]]; then
+        [[ -e \"\$dst\" && ! -L \"\$dst\" ]] && mv \"\$dst\" \"\$dst.backup.$(date +%Y%m%d-%H%M%S)\"
+        ln -sfn \"\$src\" \"\$dst\"
+        echo \"Linked ~/$d\"
     else
-        echo "Warning: Remote $dir not found – skipping"
+        echo \"Warning: Remote $d not found\"
     fi
 done
 
 echo
-echo "Setup complete! Reboot or run 'sudo mount -a' to remount."
+echo "All done! Reboot or run: sudo mount -a"
