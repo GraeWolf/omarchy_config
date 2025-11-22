@@ -18,7 +18,7 @@ password_var() {
 
       elif [ $passvar1 == $passvar2 ]
       then
-          echo $password1 >> /etc/samba_credentials
+          echo $passvar1 >> /etc/samba_credentials
           break
 
       else
@@ -37,6 +37,9 @@ read -p 'Address: ' server_address
 
 echo "Please enter user name for server:"
 read -p 'Username: ' server_user_name
+
+echo ""
+echo ""
 
 sudo sh -c '
   touch /etc/samba_credentials
