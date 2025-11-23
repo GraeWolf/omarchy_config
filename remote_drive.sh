@@ -11,7 +11,7 @@ storage_server_setup() {
         read -r server_user_name
 
         echo "Please enter share name:"
-        read -r server_share
+        read -r shared_directory
 
         echo "Please enter a password for $server_user_name:"
         read -rsp 'Password: ' passvar1; echo
@@ -49,7 +49,6 @@ storage_server_setup() {
 
 mkdir -p "$HOME/.data"
 storage_server_setup
-
 
 # Safer: only remove directories if they are symlinks or empty
 for d in Documents Music Pictures Videos; do
