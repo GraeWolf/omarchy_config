@@ -57,10 +57,10 @@ for d in Documents Music Pictures Videos; do
     fi
 done
 
-ln -sfn "$HOME/.data/$shared_directory/Documents" "$HOME/Documents"
-ln -sfn "$HOME/.data/$shared_directory/Music" "$HOME/Music"
-ln -sfn "$HOME/.data/$shared_directory/Pictures" "$HOME/Pictures"
-ln -sfn "$HOME/.data/$shared_directory/Videos" "$HOME/Videos"
+ln -sfn "$HOME/.data/Documents" "$HOME/Documents"
+ln -sfn "$HOME/.data/Music" "$HOME/Music"
+ln -sfn "$HOME/.data/Pictures" "$HOME/Pictures"
+ln -sfn "$HOME/.data/Videos" "$HOME/Videos"
 
 echo "Setup complete."
 
