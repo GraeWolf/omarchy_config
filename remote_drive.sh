@@ -50,8 +50,6 @@ storage_server_setup() {
 mkdir -p "$HOME/.data"
 storage_server_setup
 
-echo "Please enter the shared directory name:"
-read -r shared_directory
 
 # Safer: only remove directories if they are symlinks or empty
 for d in Documents Music Pictures Videos; do
