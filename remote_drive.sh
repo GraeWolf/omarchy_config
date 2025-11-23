@@ -1,92 +1,66 @@
 #!/usr/bin/env bash
+
 set -euo pipefail
 
-# Get real user details
-if [[ -n "${SUDO_USER:-}" ]]; then
-    USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-    REAL_UID=$(id -u "$SUDO_USER")
-    REAL_GID=$(id -g "$SUDO_USER")
-else
-    USER_HOME="$HOME"
-    REAL_UID=$(id -u)
-    REAL_GID=$(id -g)
-fi
+storage_server_setup() {
+    while true; do
+        echo "Please enter server address for remote storage:"
+        read -r server_address
 
-echo "=== Final Working Samba Remote Storage Setup ==="
-echo
+        echo "Please enter user name for server:"
+        read -r server_user_name
 
-read -p "Server address (IP or hostname): " server_address
-read -p "Username on server: " server_user_name
-read -p "Exact share name: " shared_directory
+        echo "Please enter a password for $server_user_name:"
+        read -rsp 'Password: ' passvar1; echo
+        echo "Please re-enter the password:"
+        read -rsp 'Password: ' passvar2; echo
 
-[[ -z "$server_address" || -z "$server_user_name" || -z "$shared_directory" ]] && {
-    echo "Error: All fields required"; exit 1
-}
-
-mkdir -p "$USER_HOME/.data"
-
-# THIS IS THE ONLY VERSION THAT NEVER HANGS AND MOUNTS CORRECTLY
-sudo bash - <<EOF
-set -euo pipefail
-
-# Secure password prompt (real TTY guaranteed)
-ask_password() {
-    while :; do
-        echo -n "Password for $server_user_name: "
-        read -rs pass1; echo
-        echo -n "Confirm password: "
-        read -rs pass2; echo
-        if [[ -n "\$pass1" && "\$pass1" == "\$pass2" ]]; then
-            echo "\$pass1"
-            return
+        if [[ -z "$passvar1" || -z "$passvar2" ]]; then
+            echo -e "\nPassword cannot be blank\n"
+            continue
         fi
-        [[ -z "\$pass1" ]] && echo "Password cannot be empty" || echo "Passwords do not match"
-        echo
+
+        if [[ "$passvar1" == "$passvar2" ]]; then
+            credfile="/etc/samba_credentials"
+
+            # Write credentials safely
+            printf "username=%s\npassword=%s\n" "$server_user_name" "$passvar1" | \
+                sudo tee "$credfile" >/dev/null
+            sudo chmod 600 "$credfile"
+
+            # Create mount directory
+            mkdir -p "$HOME/.data"
+
+            # Add to fstab
+            echo "//${server_address}  ${HOME}/.data  cifs  credentials=$credfile,uid=$(id -u),gid=$(id -g),file_mode=0644,dir_mode=0755,vers=3.0,_netdev,nofail  0 0" |
+                sudo tee -a /etc/fstab >/dev/null
+
+            # Mount
+            sudo mount -a
+            break
+        else
+            echo -e "\nPasswords did not match.\n"
+        fi
     done
 }
 
-# Install cifs-utils if missing
-command -v mount.cifs >/dev/null || {
-    echo "Installing cifs-utils..."
-    apt update -qq && apt install -y cifs-utils
-}
+mkdir -p "$HOME/.data"
+storage_server_setup
 
-PASS=\$(ask_password)
+echo "Please enter the shared directory name:"
+read -r shared_directory
 
-# Write credentials file correctly (no quoting issues)
-cat > /etc/samba_credentials <<CREDS
-username=$server_user_name
-password=\$PASS
-CREDS
-chmod 600 /etc/samba_credentials
-
-# fstab line – vers=3.0 confirmed working
-LINE="//$server_address/$shared_directory $USER_HOME/.data cifs credentials=/etc/samba_credentials,uid=$REAL_UID,gid=$REAL_GID,iocharset=utf8,file_mode=0644,dir_mode=0755,vers=3.0,nofail,_netdev 0 0"
-
-if ! grep -F "$USER_HOME/.data" /etc/fstab >/dev/null 2>&1; then
-    echo "\$LINE" >> /etc/fstab
-    echo "Added to /etc/fstab"
-else
-    echo "Already in fstab"
-fi
-
-echo "Mounting remote share..."
-mount "$USER_HOME/.data" && echo "Mount successful!"
-EOF
-
-# Create symlinks
-for dir in Documents Music Pictures Videos; do
-    src="$USER_HOME/.data/$shared_directory/$dir"
-    dst="$USER_HOME/$dir"
-    if [[ -d "$src" ]]; then
-        [[ -e "$dst" && ! -L "$dst" ]] && mv "$dst" "$dst.backup.$(date +%Y%m%d-%H%M%S)"
-        ln -sfn "$src" "$dst"
-        echo "Linked ~/$dir"
-    else
-        echo "Warning: Remote $dir not found"
+# Safer: only remove directories if they are symlinks or empty
+for d in Documents Music Pictures Videos; do
+    if [[ -d "$HOME/$d" && ! -L "$HOME/$d" ]]; then
+        mv "$HOME/$d" "$HOME/${d}.backup.$(date +%s)"
     fi
 done
 
-echo
-echo "ALL DONE! Your folders are now on the remote server."
-echo "Reboot or run: sudo mount -a"
+ln -sfn "$HOME/.data/$shared_directory/Documents" "$HOME/Documents"
+ln -sfn "$HOME/.data/$shared_directory/Music" "$HOME/Music"
+ln -sfn "$HOME/.data/$shared_directory/Pictures" "$HOME/Pictures"
+ln -sfn "$HOME/.data/$shared_directory/Videos" "$HOME/Videos"
+
+echo "Setup complete."
+
