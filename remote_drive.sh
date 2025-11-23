@@ -35,7 +35,7 @@ storage_server_setup() {
             mkdir -p "$HOME/.data"
 
             # Add to fstab
-            echo "//${server_address}/${server_share}  ${HOME}/.data  cifs  credentials=$credfile,uid=$(id -u),gid=$(id -g),file_mode=0644,dir_mode=0755,vers=3.0,_netdev,nofail  0 0" |
+            echo "//${server_address}/${shared_directory}  ${HOME}/.data  cifs  credentials=$credfile,uid=$(id -u),gid=$(id -g),file_mode=0644,dir_mode=0755,vers=3.0,_netdev,nofail  0 0" |
                 sudo tee -a /etc/fstab >/dev/null
 
             # Mount
