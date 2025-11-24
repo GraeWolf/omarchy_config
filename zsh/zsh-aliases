@@ -1,0 +1,80 @@
+#!/bin/sh
+
+alias zsh-update-plugins="find "$ZDOTDIR/plugins" -type d -exec test -e '{}/.git' ';' -print0 | xargs -I {} -0 git -C {} pull -q"
+alias nvimrc='nvim ~/.config/nvim/'
+
+# get fastest mirrors
+alias mirror="sudo reflector -f 30 -l 30 --number 10 --verbose --save /etc/pacman.d/mirrorlist"
+alias mirrord="sudo reflector --latest 50 --number 20 --sort delay --save /etc/pacman.d/mirrorlist"
+alias mirrors="sudo reflector --latest 50 --number 20 --sort score --save /etc/pacman.d/mirrorlist"
+alias mirrora="sudo reflector --latest 50 --number 20 --sort age --save /etc/pacman.d/mirrorlist"
+
+# Colorize grep output (good for log files)
+alias grep='grep --color=auto'
+alias egrep='egrep --color=auto'
+alias fgrep='fgrep --color=auto'
+
+# confirm before overwriting something
+#alias cp="cp -i"
+#alias mv='mv -i'
+#alias rm='rm -i'
+
+# easier to read disk
+alias df='df -h'     # human-readable sizes
+alias free='free -m' # show sizes in MB
+
+# get top process eating memory
+alias psmem='ps auxf | sort -nr -k 4 | head -5'
+
+# get top process eating cpu ##
+alias pscpu='ps auxf | sort -nr -k 3 | head -5'
+
+# gpg encryption
+# verify signature for isos
+alias gpg-check="gpg2 --keyserver-options auto-key-retrieve --verify"
+# receive the key of a developer
+alias gpg-retrieve="gpg2 --keyserver-options auto-key-retrieve --receive-keys"
+
+# For when keys break
+alias archlinx-fix-keys="sudo pacman-key --init && sudo pacman-key --populate archlinux && sudo pacman-key --refresh-keys"
+
+# list
+alias ls="eza -al --color=always --group-directories-first"
+alias l.="eza -a | egrep '^\.'"
+
+# cat alternative
+alias cat="bat"
+
+# pacman
+alias pin="sudo pacman -S --color auto"
+alias update="sudo pacman -Syyu"
+alias pss="pacman -Ss"
+alias pun="sudo pacman -Rs"
+
+# Fedora package management
+alias dup="sudo dnf update"
+alias din="sudo dnf install"
+alias dun="sudo dnf remove"
+alias dss="dnf search"
+
+# Dotfiles
+alias config="/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME"
+
+# C++ Compilation
+alias compile="g++ -std=c++20 -ggdb -Wall -Weffc++ -Wextra -Wsign-conversion -Werror"
+alias compray="g++ -std=c++20 -lraylib -ggdb -Wall -Weffc++ -Wextra -Wsign-conversion -Werror"
+alias compsdl="g++ -std=c++20 -lSDL3 -lSDL3_image -lSDL3_mixer -ggdb -Wall -Weffc++ -Wextra -Wextra -Wsign-conversion -Werror"
+alias compsfml="g++ -std=c++20 -ggdb -Wall -Weffc++ -Wextra -Wsign-conversion -Werror -lsfml-graphics -lsfml-window -lsfml-system"
+
+# Second Brain shortcut
+alias sb="cd ~/Documents/SecondBrain && nvim"
+
+# Python venv development projecsts directory
+alias pydev="cd ~/Dev/projects/python/venvs/projects"
+
+# Gentoo Aliases
+alias gin="sudo emerge --ask"
+alias grb="sudo grub-mkconfig -o /boot/grub/grub.cfg"
+alias gensync="sudo emerge --sync"
+alias gup="sudo emerge --update --deep --newuse @world"
+alias glean="sudo emerge --ask --depclean"
