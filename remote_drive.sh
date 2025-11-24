@@ -57,6 +57,7 @@ for d in Documents Music Pictures Videos; do
     fi
 done
 
+ln -sfn "$HOME/.data/Dev" "$HOME/Dev"
 ln -sfn "$HOME/.data/Documents" "$HOME/Documents"
 ln -sfn "$HOME/.data/Music" "$HOME/Music"
 ln -sfn "$HOME/.data/Pictures" "$HOME/Pictures"
