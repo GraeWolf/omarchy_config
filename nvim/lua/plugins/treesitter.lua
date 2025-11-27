@@ -1,5 +1,6 @@
 return {
 	'nvim-treesitter/nvim-treesitter',
+	branch = "main",
 	build = ":TSUpdate",
 	config = function()
 		local configs = require("nvim-treesitter.configs")
